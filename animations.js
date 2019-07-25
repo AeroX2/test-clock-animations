@@ -1,5 +1,5 @@
 WIDTH = 8;
-HEIGHT = 16;
+HEIGHT = 8;
 
 numbers = [
   /* 48 0x30 '0' */
@@ -50,7 +50,7 @@ numbers = [
 //[0x00,0x00,0x78,0xCC,0xCC,0xCC,0xCC,0x7C,0x18,0x18,0x30,0x30,0x00,0x00,0x00],
 //[0x00,0x00,0x00,0x00,0x30,0x30,0x00,0x00,0x00,0x30,0x30,0x00,0x00,0x00,0x00],
 //]
-  
+
 number = 0;
 gridItems = document.getElementsByClassName("grid-item");
 
@@ -90,14 +90,14 @@ async function tetris() {
 
     for (let y = 0; y <= i; y++) {
       if (y > 0) {
-        for (let x = 0; x < WIDTH; x++) {
-          gridItems[enc(x,y-1)].style.opacity = "0";
-        }
+	for (let x = 0; x < WIDTH; x++) {
+	  gridItems[enc(x,y-1)].style.opacity = "0";
+	}
       }
-      
+
 
       for (let x = 0; x < WIDTH; x++) {
-        gridItems[enc(x,y)].style.opacity = (line >> WIDTH-x) & 1
+	gridItems[enc(x,y)].style.opacity = (line >> WIDTH-x) & 1
       }
 
       await sleep(50);
@@ -118,8 +118,8 @@ async function snake() {
 
       snake[snake.length % (length+1)] = dec(x,y);
       if (snake.length > length) {
-        let shift = snake.shift();
-        gridItems[shift].style.opacity = decs(shift);
+	let shift = snake.shift();
+	gridItems[shift].style.opacity = decs(shift);
       }
 
       if (left) x--; else x++;
@@ -136,7 +136,72 @@ async function snake() {
   }
 }
 
+function find(subsets, i) {  
+  // find root and make root as parent of i  
+  // (path compression)  
+  if (subsets[i].parent != i)  
+    subsets[i].parent = find(subsets, subsets[i].parent);  
+
+  return subsets[i].parent;  
+}  
+
+function union(subsets, x, y) {  
+  let xroot = find(subsets, x);  
+  let yroot = find(subsets, y);  
+
+  // Attach smaller rank tree under root of high  
+  // rank tree (Union by Rank)  
+  if (subsets[xroot].rank < subsets[yroot].rank)      subsets[xroot].parent = yroot;  
+  else if (subsets[xroot].rank > subsets[yroot].rank) subsets[yroot].parent = xroot;  
+  // If ranks are same, then make one as root and  
+  // increment its rank by one  
+  else {  
+    subsets[yroot].parent = xroot;  
+    subsets[xroot].rank++;  
+  }  
+}
+
 function snake2() {
+  let subsets = [];
+  let graph = [];
+  let edges = [];
+
+  const hh = HEIGHT/2;
+  const hw = WIDTH/2;
+  for (let y = 0; y < hh; y++) {
+    for (let x = 0; x < hw; x++) {
+      let index = y*hw+x
+
+      graph.push({index: index, edges: []})
+      if (x > 0) edges.push({src: index-1, dest: index}) 
+
+      subsets.push({ parent: index, rank: 0});
+    }
+    if (y > 0) {
+      for (let x = 0; x < WIDTH/2; x++) {
+	let index = y*hw+x
+	edges.push({src: index-hw, dest: index}) 
+      }
+    }
+  }
+
+  edges = edges.sort(() => Math.random() - 0.5);
+  for (let edge of edges) {
+    let x = find(subsets, edge.src);
+    let y = find(subsets, edge.dest);
+
+    if (x != y) {
+      let xn = graph[edge.src];
+      let yn = graph[edge.dest];
+
+      xn.edges.push(yn);
+      yn.edges.push(xn);
+
+      union(subsets, x, y);
+    }
+  }
+
+  //Snake algo 
 }
 
 function fade() {}
@@ -146,10 +211,10 @@ function splitapart() {}
 function randomdisappearing() {}
 
 async function tick() {
-  await sleep(500);
-  await clear();
-  await normal();
-  await sleep(500);
+  //await sleep(500);
+  //await clear();
+  //await normal();
+  //await sleep(500);
 
   //await sleep(500);
   //await clear();
@@ -160,7 +225,12 @@ async function tick() {
   //await clear();
   //await snake();
   //await sleep(500);
-  
+
+  await sleep(500);
+  await clear();
+  await snake2();
+  await sleep(500);
+
   number = (number + 1) % numbers.length;
   tick();
 }
