@@ -1,9 +1,8 @@
 WIDTH = 8;
-HEIGHT = 8;
+HEIGHT = 16;
 
 numbers = [
   /* 48 0x30 '0' */
-  [ 0x27, 0x27, 0x45, 0x45, 0x45, 0x45, 0x45, 0x45, 0x39, 0x39 ]
   [ 0x00, 0x00, 0x38, 0x6c, 0xc6, 0xc6, 0xd6, 0xd6, 0xc6, 0xc6, 0x6c, 0x38, 0x00, 0x00, 0x00, 0x00 ],
   /* 49 0x31 '1' */
   [ 0x00, 0x00, 0x18, 0x38, 0x78, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x7e, 0x00, 0x00, 0x00, 0x00 ],
@@ -161,25 +160,31 @@ function union(subsets, x, y) {
   }  
 }
 
-function snake2() {
+async function snake2() {
   let subsets = [];
   let graph = [];
   let edges = [];
 
-  const hh = HEIGHT/2;
-  const hw = WIDTH/2;
+  const hh = Math.floor(HEIGHT/2);
+  const hw = Math.floor(WIDTH/2);
+
+  const decc = (x,y) => {
+    return y*hw+x
+  }
+
+
   for (let y = 0; y < hh; y++) {
     for (let x = 0; x < hw; x++) {
-      let index = y*hw+x
+      let index = decc(x,y)
 
-      graph.push({index: index, edges: []})
+      graph.push({index: index, edges: {}})
       if (x > 0) edges.push({src: index-1, dest: index}) 
 
       subsets.push({ parent: index, rank: 0});
     }
     if (y > 0) {
       for (let x = 0; x < WIDTH/2; x++) {
-	let index = y*hw+x
+	let index = decc(x,y)
 	edges.push({src: index-hw, dest: index}) 
       }
     }
@@ -194,14 +199,60 @@ function snake2() {
       let xn = graph[edge.src];
       let yn = graph[edge.dest];
 
-      xn.edges.push(yn);
-      yn.edges.push(xn);
+      xn.edges[yn.index] = yn;
+      yn.edges[xn.index] = xn;
 
       union(subsets, x, y);
     }
   }
 
   //Snake algo 
+  let snakea = []
+  let snake = {x:0, y:0, direction: {x: 1, y: 0}}
+  for (let i = 0; i < WIDTH*HEIGHT; i++) {
+    snake.x += snake.direction.x
+    snake.y += snake.direction.y
+
+    let left = snake.x % 2 === 0;
+    let top = snake.y % 2 === 0;
+
+    let sxf = Math.floor(snake.x / 2);
+    let syf = Math.floor(snake.y / 2);
+
+    let index = decc(sxf,syf)
+    let cn = graph[index]
+
+    if (top && left) {
+      if (cn.edges[index-hw]) snake.direction = {x: 0, y: -1}
+      else snake.direction = { x: 1, y: 0 }
+    } else if (top && !left) {
+      if (cn.edges[index+1]) snake.direction = {x: 1, y: 0}
+      else snake.direction = { x: 0, y: 1 }
+    } else if (!top && left) {
+      if (cn.edges[index-1]) snake.direction = {x: -1, y: 0}
+      else snake.direction = { x: 0, y: -1 }
+    } else if (!top && !left) {
+      if (cn.edges[index+hw]) snake.direction = {x: 0, y: 1}
+      else snake.direction = { x: -1, y: 0 }
+    }
+
+    gridItems[enc(snake.x, snake.y)].style.opacity = '1';
+
+    let length = 15;
+    snakea[snakea.length % (length+1)] = enc(snake.x,snake.y);
+    if (snakea.length > length) {
+      let shift = snakea.shift();
+      gridItems[shift].style.opacity = decs(shift);
+    }
+
+    await sleep(30);
+  }
+
+  while (snakea.length > 0) {
+    let shift = snakea.shift();
+    gridItems[shift].style.opacity = decs(shift);
+    await sleep(30);
+  }
 }
 
 function fade() {}
@@ -216,10 +267,10 @@ async function tick() {
   //await normal();
   //await sleep(500);
 
-  //await sleep(500);
-  //await clear();
-  //await tetris();
-  //await sleep(500);
+  await sleep(500);
+  await clear();
+  await tetris();
+  await sleep(500);
 
   //await sleep(500);
   //await clear();
